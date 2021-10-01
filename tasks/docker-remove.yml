@@ -1,0 +1,11 @@
+---
+
+- name: remove docker packages
+  yum:
+    name: "{{ docker_packages_install | join(',') }}"
+    state: absent
+
+- name: remove docker repo
+  file:
+    path: /etc/yum.repos.d/docker-ce.repo
+    state: absent
