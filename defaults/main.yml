@@ -2,18 +2,20 @@
 # defaults file for role-docker
 
 docker_install: false
-# docker_repo_url: "https://download.docker.com/linux/centos/docker-ce.repo"
-# docker_packages_remove:
-#   - docker
-#   - docker-client
-#   - docker-client-latest
-#   - docker-common
-#   - docker-latest
-#   - docker-latest-logrotate
-#   - docker-logrotate
-#   - docker-engine
+docker_compose_binary_path: "/usr/local/bin/docker-compose"
+docker_compose_url: "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)"
+docker_repo_url: "https://download.docker.com/linux/centos/docker-ce.repo"
+docker_packages_remove:
+  - docker
+  - docker-client
+  - docker-client-latest
+  - docker-common
+  - docker-latest
+  - docker-latest-logrotate
+  - docker-logrotate
+  - docker-engine
 
-# docker_packages_install:
-#   - docker-ce
-#   - docker-ce-cli
-#   - containerd.io
+docker_packages_install:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io

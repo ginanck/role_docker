@@ -1,0 +1,30 @@
+---
+
+- name: uname -s
+  command: uname -s
+  register: uname_s
+
+- name: uname -m
+  command: uname -m
+  register: uname_m
+
+- name: install docker-compose binary
+  get_url:
+    url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-{{ uname_s.stdout }}-{{ uname_m.stdout }}"
+    dest: "{{ docker_compose_binary_path }}"
+    mode: '0644'
+
+- name: give permission to docker-compose
+  file:
+    path: "{{ docker_compose_binary_path }}"
+    owner: root
+    group: root
+    mode: '+x'
+
+- name: create a symbolic link
+  file:
+    src: "{{ docker_compose_binary_path }}"
+    dest: "/usr/bin/docker-compose"
+    owner: root
+    group: root
+    state: link
