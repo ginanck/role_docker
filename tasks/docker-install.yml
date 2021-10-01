@@ -1,8 +1,17 @@
 ---
 
+- name: check package exist
+  package_facts:
+    manager: auto
+
+- name: Remove Old Docker Packages
+  yum:
+    name: "{{ docker_packages_remove | join(',') }}"
+    state: absent
+
 - name: add docker repo
   get_url:
-    url: https://download.docker.com/linux/centos/docker-ce.repo
+    url: "{{ docker_repo_url }}"
     dest: /etc/yum.repos.d/docker-ce.repo
     mode: '0644'
 

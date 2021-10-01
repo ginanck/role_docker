@@ -1,0 +1,46 @@
+---
+
+- name: Set fact for CentOS/AlmaLinux
+  set_fact:
+    docker_repo_url: "https://download.docker.com/linux/centos/docker-ce.repo"
+    docker_packages_remove:
+      - docker
+      - docker-client
+      - docker-client-latest
+      - docker-common
+      - docker-latest
+      - docker-latest-logrotate
+      - docker-logrotate
+      - docker-engine
+    docker_packages_install:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+  when:
+    - ansible_distribution in ['CentOS', 'AlmaLinux']
+
+- name: Set fact for RedHat
+  set_fact:
+    docker_repo_url: "https://download.docker.com/linux/rhel/docker-ce.repo"
+    docker_packages_remove:
+      - docker
+      - docker
+      - docker-client
+      - docker-client-latest
+      - docker-common
+      - docker-latest
+      - docker-latest-logrotate
+      - docker-logrotate
+      - docker-engine
+      - podman
+      - runc
+    docker_packages_install:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+  when:
+    - ansible_distribution in ['RedHat']
+
+# - name: Print Variable
+#   debug:
+#     msg: "{{ variable }}, {{ distro }}"

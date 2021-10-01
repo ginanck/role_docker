@@ -1,44 +1,14 @@
 ---
 # tasks file for role-docker
 
-- name: check package exist
-  package_facts:
-    manager: auto
+- name: Check Supported OS
+  import_tasks: os-check.yml
 
-- name: Remove Old Docker Packages
-  yum:
-    name: "{{ docker_packages_remove | join(',') }}"
-    state: absent
-    update_cache: yes
+- name: Set Facts Based on Distro
+  import_tasks: os-vars.yml
 
-- name: Install yum-config manager
-  yum:
-    name: yum-utils
-    state: present
-  when:
-   - ansible_system not in ['Linux']
-   - ansible_architecture not in ['x86_64']
-   - ansible_distribution not in ['CentOS', 'RedHat']
-   - ansible_distribution_major_version not in ['7']
+- name: Install Package Manager
+  import_tasks: os-package.yml
 
-- name: Install dnf package manager
-  yum:
-    name:
-      - yum-utils
-      - dnf
-    state: present
-  when:
-   - ansible_system not in ['Linux']
-   - ansible_architecture not in ['x86_64']
-   - ansible_distribution not in ['CentOS', 'RedHat', 'AlmaLinux']
-   - ansible_distribution_major_version not in ['8']
-
-- name: Install Docker
-  when:
-    - "{{ docker_install }} is true"
-  import_tasks: docker-install.yml
-
-- name: Remove Docker
-  when:
-    - "{{ docker_install }} is false"
-  import_tasks: docker-remove.yml
+- name: Configure Docker
+  import_tasks: configure-docker.yml

@@ -1,0 +1,17 @@
+---
+
+- name: Install Docker
+  when:
+    - "{{ docker_install }} is true"
+    - ansible_architecture in ['x86_64']
+    - ansible_distribution in ['CentOS', 'RedHat', 'AlmaLinux']
+    - ansible_distribution_major_version in ['7', '8']
+  import_tasks: docker-install.yml
+
+- name: Remove Docker
+  when:
+    - "{{ docker_install }} is false"
+    - ansible_architecture in ['x86_64']
+    - ansible_distribution in ['CentOS', 'RedHat', 'AlmaLinux']
+    - ansible_distribution_major_version in ['7', '8']
+  import_tasks: docker-remove.yml
