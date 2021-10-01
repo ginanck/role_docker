@@ -12,6 +12,3 @@
 
 - name: Configure Docker
   import_tasks: configure-docker.yml
-
-- name: Deploy Docker-Compose
-  import_tasks: compose-install.yml

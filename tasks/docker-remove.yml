@@ -9,3 +9,13 @@
   file:
     path: /etc/yum.repos.d/docker-ce.repo
     state: absent
+
+- name: remove docker-compose link
+  file:
+    path: "/usr/bin/docker-compose"
+    state: absent
+
+- name: remove docker-compose binary
+  file:
+    path: "{{ docker_compose_binary_path }}"
+    state: absent
