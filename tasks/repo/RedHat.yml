@@ -1,0 +1,7 @@
+---
+
+- name: Add Docker CE repository
+  ansible.builtin.shell: |
+    dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+  args:
+    creates: /etc/yum.repos.d/docker-ce.repo

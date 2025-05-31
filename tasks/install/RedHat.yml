@@ -1,0 +1,19 @@
+---
+
+- name: Install dnf-plugins-core
+  ansible.builtin.dnf:
+    name: dnf-plugins-core
+    state: present
+
+- name: Install Docker Repo
+  ansible.builtin.include_tasks: tasks/repo/{{ ansible_os_family }}.yml
+
+- name: Install Docker packages
+  ansible.builtin.dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present

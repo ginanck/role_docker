@@ -1,0 +1,25 @@
+---
+
+- name: Download Docker's official GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+
+- name: Get architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: arch_result
+  changed_when: false
+
+- name: Get Debian codename
+  ansible.builtin.shell: |
+    . /etc/os-release && echo "$VERSION_CODENAME"
+  register: codename_result
+  changed_when: false
+
+- name: Add Docker repository to Apt sources
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ arch_result.stdout }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ codename_result.stdout }} stable"
+    filename: docker
+    state: present
+    update_cache: yes

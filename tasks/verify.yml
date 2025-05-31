@@ -1,0 +1,32 @@
+---
+
+- name: Enable and start Docker service
+  ansible.builtin.systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+- name: Verify Docker installation with hello-world
+  ansible.builtin.command: docker run hello-world
+  register: docker_test
+  changed_when: false
+  ignore_errors: true
+
+- name: Remove hello-world container after verification
+  ansible.builtin.command: docker container prune -f
+  when: docker_test.rc == 0
+  changed_when: false
+  ignore_errors: true
+
+- name: Display Docker verification result
+  ansible.builtin.debug:
+    msg: "Docker installation {{ 'successful' if docker_test.rc == 0 else 'failed' }}"
+
+- name: Show Docker version
+  ansible.builtin.command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: Display Docker version
+  ansible.builtin.debug:
+    var: docker_version.stdout

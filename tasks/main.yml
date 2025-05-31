@@ -1,14 +1,8 @@
 ---
 # tasks file for role-docker
 
-- name: Check Supported OS
-  import_tasks: os-check.yml
+- name: Include Docker installation tasks
+  ansible.builtin.include_tasks: tasks/install/{{ ansible_os_family }}.yml
 
-- name: Set Facts Based on Distro
-  import_tasks: os-vars.yml
-
-- name: Install Package Manager
-  import_tasks: os-package.yml
-
-- name: Configure Docker
-  import_tasks: configure-docker.yml
+- name: Verify Docker installation
+  ansible.builtin.include_tasks: tasks/verify.yml
