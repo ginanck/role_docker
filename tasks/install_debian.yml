@@ -18,7 +18,7 @@
     mode: '0755'
 
 - name: Install Docker Repo
-  ansible.builtin.include_tasks: tasks/repo/{{ ansible_distribution }}.yml
+  ansible.builtin.include_tasks: repo/{{ ansible_distribution }}.yml
 
 - name: Install Docker packages
   ansible.builtin.apt:

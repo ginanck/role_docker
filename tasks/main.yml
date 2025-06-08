@@ -2,7 +2,15 @@
 # tasks file for role-docker
 
 - name: Include Docker installation tasks
-  ansible.builtin.include_tasks: tasks/install/{{ ansible_os_family }}.yml
+  ansible.builtin.include_tasks: "install_{{ ansible_os_family | lower }}.yml"
+
+- name: Add users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: yes
+  loop: "{{ docker_users }}"
+  when: docker_users is defined
 
 - name: Verify Docker installation
   ansible.builtin.include_tasks: tasks/verify.yml

@@ -6,7 +6,7 @@
     state: present
 
 - name: Install Docker Repo
-  ansible.builtin.include_tasks: tasks/repo/{{ ansible_os_family }}.yml
+  ansible.builtin.include_tasks: repo/{{ ansible_os_family }}.yml
 
 - name: Install Docker packages
   ansible.builtin.dnf:
