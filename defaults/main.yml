@@ -20,3 +20,10 @@ docker_packages_install:
   - containerd.io
 
 docker_users: []
+  # - username: jenkins
+  #   home: /opt/jenkins
+  #   become_user: jenkins
+  #   ignore_errors: true
+
+docker_enable_tcp: false
+docker_tcp_port: 2375

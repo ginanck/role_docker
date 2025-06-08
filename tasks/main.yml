@@ -12,5 +12,15 @@
   loop: "{{ docker_users }}"
   when: docker_users is defined
 
+- name: Configure Docker systemd service
+  ansible.builtin.template:
+    src: docker.service.j2
+    dest: /usr/lib/systemd/system/docker.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - restart docker
+
 - name: Verify Docker installation
   ansible.builtin.include_tasks: tasks/verify.yml
