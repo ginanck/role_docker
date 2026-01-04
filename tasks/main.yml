@@ -19,8 +19,6 @@
     owner: root
     group: root
     mode: '0644'
-  notify:
-    - restart docker
 
 - name: Verify Docker installation
   ansible.builtin.include_tasks: tasks/verify.yml
