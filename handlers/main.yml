@@ -7,3 +7,4 @@
     state: restarted
     daemon_reload: true
     enabled: true
+  tags: notest
