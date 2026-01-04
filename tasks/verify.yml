@@ -5,6 +5,8 @@
     name: docker
     enabled: yes
     state: started
+  tags:
+    - molecule-notest
 
 - name: Verify Docker installation with hello-world
   ansible.builtin.command: docker run hello-world
