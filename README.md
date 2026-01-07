@@ -79,31 +79,33 @@ ansible-galaxy install -r meta/install_requirements.yml
 
 ## Role Variables
 
+**These are static variables with lower priority**
 
 
-### File: `defaults/main.yml`
 
-| Variable | Default Value | Description |
-|----------|---------------|-------------|
-| `docker_compose_binary_path` | `/usr/local/bin/docker-compose` | None |
-| `docker_compose_url` | `https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)` | None |
-| `docker_repo_url` | `https://download.docker.com/linux/centos/docker-ce.repo` | None |
-| `docker_packages_remove` | `[]` | None |
-| `docker_packages_remove.0` | `docker` | None |
-| `docker_packages_remove.1` | `docker-client` | None |
-| `docker_packages_remove.2` | `docker-client-latest` | None |
-| `docker_packages_remove.3` | `docker-common` | None |
-| `docker_packages_remove.4` | `docker-latest` | None |
-| `docker_packages_remove.5` | `docker-latest-logrotate` | None |
-| `docker_packages_remove.6` | `docker-logrotate` | None |
-| `docker_packages_remove.7` | `docker-engine` | None |
-| `docker_packages_install` | `[]` | None |
-| `docker_packages_install.0` | `docker-ce` | None |
-| `docker_packages_install.1` | `docker-ce-cli` | None |
-| `docker_packages_install.2` | `containerd.io` | None |
-| `docker_users` | `[]` | None |
-| `docker_enable_tcp` | `False` | None |
-| `docker_tcp_port` | `2375` | None |
+#### File: defaults/main.yml
+
+| Var | Type | Value |
+|-----|------|-------|
+| [docker_compose_binary_path](defaults/main.yml#L4) | str | `/usr/local/bin/docker-compose` |
+| [docker_compose_url](defaults/main.yml#L5) | str | `https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)` |
+| [docker_enable_tcp](defaults/main.yml#L26) | bool |  |
+| [docker_packages_install](defaults/main.yml#L17) | list |  |
+| [docker_packages_install.0](defaults/main.yml#L18) | str | `docker-ce` |
+| [docker_packages_install.1](defaults/main.yml#L19) | str | `docker-ce-cli` |
+| [docker_packages_install.2](defaults/main.yml#L20) | str | `containerd.io` |
+| [docker_packages_remove](defaults/main.yml#L7) | list |  |
+| [docker_packages_remove.0](defaults/main.yml#L7) | str | `docker` |
+| [docker_packages_remove.1](defaults/main.yml#L9) | str | `docker-client` |
+| [docker_packages_remove.2](defaults/main.yml#L10) | str | `docker-client-latest` |
+| [docker_packages_remove.3](defaults/main.yml#L11) | str | `docker-common` |
+| [docker_packages_remove.4](defaults/main.yml#L12) | str | `docker-latest` |
+| [docker_packages_remove.5](defaults/main.yml#L13) | str | `docker-latest-logrotate` |
+| [docker_packages_remove.6](defaults/main.yml#L14) | str | `docker-logrotate` |
+| [docker_packages_remove.7](defaults/main.yml#L15) | str | `docker-engine` |
+| [docker_repo_url](defaults/main.yml#L6) | str | `https://download.docker.com/linux/centos/docker-ce.repo` |
+| [docker_tcp_port](defaults/main.yml#L27) | int | `2375` |
+| [docker_users](defaults/main.yml#L22) | list |  |
 
 
 
@@ -114,66 +116,87 @@ ansible-galaxy install -r meta/install_requirements.yml
 This role performs the following tasks:
 
 
-### `verify.yml`
+### File: `tasks/verify.yml`
+
+| Task Name | Module | Has Conditions | Line |
+|-----------|--------|----------------|------|
+| [Enable and start Docker service](tasks/verify.yml#L) | ansible.builtin.systemd | No | N/A |
+| [Verify Docker installation with hello-world](tasks/verify.yml#L) | ansible.builtin.command | No | N/A |
+| [Remove hello-world container after verification](tasks/verify.yml#L) | ansible.builtin.command | Yes | N/A |
+| [Display Docker verification result](tasks/verify.yml#L) | ansible.builtin.debug | No | N/A |
+| [Show Docker version](tasks/verify.yml#L) | ansible.builtin.command | No | N/A |
+| [Display Docker version](tasks/verify.yml#L) | ansible.builtin.debug | No | N/A |
 
 
-- **Enable and start Docker service**
-- **Verify Docker installation with hello-world**
-- **Remove hello-world container after verification**
-- **Display Docker verification result**
-- **Show Docker version**
-- **Display Docker version**
 
 
-### `install_debian.yml`
+### File: `tasks/install_debian.yml`
+
+| Task Name | Module | Has Conditions | Line |
+|-----------|--------|----------------|------|
+| [Update apt package index](tasks/install_debian.yml#L) | ansible.builtin.apt | No | N/A |
+| [Install prerequisites](tasks/install_debian.yml#L) | ansible.builtin.apt | No | N/A |
+| [Create /etc/apt/keyrings directory](tasks/install_debian.yml#L) | ansible.builtin.file | No | N/A |
+| [Install Docker Repo](tasks/install_debian.yml#L) | ansible.builtin.include_tasks | No | N/A |
+| [Install Docker packages](tasks/install_debian.yml#L) | ansible.builtin.apt | No | N/A |
 
 
-- **Update apt package index**
-- **Install prerequisites**
-- **Create /etc/apt/keyrings directory**
-- **Install Docker Repo**
-- **Install Docker packages**
 
 
-### `main.yml`
+### File: `tasks/main.yml`
+
+| Task Name | Module | Has Conditions | Line |
+|-----------|--------|----------------|------|
+| [Include Docker installation tasks](tasks/main.yml#L) | ansible.builtin.include_tasks | No | N/A |
+| [Add users to docker group](tasks/main.yml#L) | ansible.builtin.user | Yes | N/A |
+| [Configure Docker systemd service](tasks/main.yml#L) | ansible.builtin.template | No | N/A |
+| [Verify Docker installation](tasks/main.yml#L) | ansible.builtin.include_tasks | No | N/A |
 
 
-- **Include Docker installation tasks**
-- **Add users to docker group**
-- **Configure Docker systemd service**
-- **Verify Docker installation**
 
 
-### `install_redhat.yml`
+### File: `tasks/install_redhat.yml`
+
+| Task Name | Module | Has Conditions | Line |
+|-----------|--------|----------------|------|
+| [Install dnf-plugins-core](tasks/install_redhat.yml#L) | ansible.builtin.dnf | No | N/A |
+| [Install Docker Repo](tasks/install_redhat.yml#L) | ansible.builtin.include_tasks | No | N/A |
+| [Install Docker packages](tasks/install_redhat.yml#L) | ansible.builtin.dnf | No | N/A |
 
 
-- **Install dnf-plugins-core**
-- **Install Docker Repo**
-- **Install Docker packages**
 
 
-### `repo/RedHat.yml`
+### File: `tasks/repo/RedHat.yml`
+
+| Task Name | Module | Has Conditions | Line |
+|-----------|--------|----------------|------|
+| [Add Docker CE repository](tasks/repo/RedHat.yml#L) | ansible.builtin.shell | No | N/A |
 
 
-- **Add Docker CE repository**
 
 
-### `repo/Ubuntu.yml`
+### File: `tasks/repo/Ubuntu.yml`
+
+| Task Name | Module | Has Conditions | Line |
+|-----------|--------|----------------|------|
+| [Download Docker's official GPG key](tasks/repo/Ubuntu.yml#L) | ansible.builtin.get_url | No | N/A |
+| [Get architecture](tasks/repo/Ubuntu.yml#L) | ansible.builtin.command | No | N/A |
+| [Get Ubuntu codename](tasks/repo/Ubuntu.yml#L) | ansible.builtin.shell | No | N/A |
+| [Add Docker repository to Apt sources](tasks/repo/Ubuntu.yml#L) | ansible.builtin.apt_repository | No | N/A |
 
 
-- **Download Docker's official GPG key**
-- **Get architecture**
-- **Get Ubuntu codename**
-- **Add Docker repository to Apt sources**
 
 
-### `repo/Debian.yml`
+### File: `tasks/repo/Debian.yml`
+
+| Task Name | Module | Has Conditions | Line |
+|-----------|--------|----------------|------|
+| [Download Docker's official GPG key](tasks/repo/Debian.yml#L) | ansible.builtin.get_url | No | N/A |
+| [Get architecture](tasks/repo/Debian.yml#L) | ansible.builtin.command | No | N/A |
+| [Get Debian codename](tasks/repo/Debian.yml#L) | ansible.builtin.shell | No | N/A |
+| [Add Docker repository to Apt sources](tasks/repo/Debian.yml#L) | ansible.builtin.apt_repository | No | N/A |
 
 
-- **Download Docker's official GPG key**
-- **Get architecture**
-- **Get Debian codename**
-- **Add Docker repository to Apt sources**
 
 
 
@@ -193,41 +216,6 @@ This role performs the following tasks:
         docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 
 ```
-
-## Documentation Maintenance
-
-### Updating Dependencies
-
-1. **Update** `meta/main.yml`:
-   ```yaml
-   documented_requirements:
-     - src: https://github.com/user/role.git
-       version: master
-     - name: collection.name
-       version: 1.0.0
-   ```
-
-2. **Sync** `meta/install_requirements.yml` with the same requirements
-
-3. **Regenerate** documentation:
-   ```bash
-   pre-commit run --all-files
-   ```
-
-### Template Updates
-
-- Edit `.docsible_template.md` for structure changes
-- Test with: `docsible --role . --md-template .docsible_template.md -nob -com -tl`
-- Commit both template and generated README.md
-
-### Quick Checklist
-
-When updating dependencies:
-- [ ] Add to `meta/main.yml` → `documented_requirements`
-- [ ] Add to `meta/install_requirements.yml`
-- [ ] Run `pre-commit run --all-files`
-- [ ] Verify generated README.md
-- [ ] Commit all changes
 
 ## License
 
