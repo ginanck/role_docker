@@ -17,8 +17,7 @@ on:
         options:
           - all
           - default
-          - almalinux-9
-          - almalinux-10
+          - rockylinux-9
       debug_mode:
         description: 'Enable debug mode for verbose output'
         required: false
