@@ -9,7 +9,7 @@ dependency:
 driver:
   name: docker
 platforms:
-  - name: rockylinux-10
+  - name: role-docker-rockylinux-10
     image: ghcr.io/ginanck/molecule-rockylinux:10-latest
     pre_build_image: true
     privileged: true
@@ -28,9 +28,9 @@ provisioner:
     ANSIBLE_COLLECTIONS_PATH: ${MOLECULE_PROJECT_DIRECTORY}/dependency/collections
   inventory:
     host_vars:
-      rockylinux-10:
+      role-docker-rockylinux-10:
         ansible_user: root
-        base_hostname: "rockylinux-10"
+        base_hostname: "role-docker-rockylinux-10"
   playbooks:
     converge: ../resources/converge.yml
     prepare: ../resources/prepare.yml

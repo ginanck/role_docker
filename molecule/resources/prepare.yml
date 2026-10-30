@@ -4,3 +4,116 @@
   become: true
   roles:
     - role_base
+  tasks:
+    - name: Ensure openssl is present for the TLS fixture
+      ansible.builtin.package:
+        name: openssl
+        state: present
+
+    - name: Create the Docker configuration directory
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    # An existing configuration with a key the role does not manage must survive.
+    - name: Seed an existing daemon configuration with an unmanaged key
+      ansible.builtin.copy:
+        content: |
+          {
+            "debug": true,
+            "log-opts": {
+              "max-size": "1g"
+            }
+          }
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create the TLS fixture directory
+      ansible.builtin.file:
+        path: /etc/docker/tls
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Generate the TLS fixture CA
+      ansible.builtin.command:
+        cmd: >-
+          openssl req -x509 -nodes -newkey rsa:2048 -days 2
+          -subj /CN=molecule-docker-ca
+          -keyout /etc/docker/tls/ca-key.pem
+          -out /etc/docker/tls/ca.pem
+      args:
+        creates: /etc/docker/tls/ca.pem
+
+    - name: Write the TLS fixture server extensions
+      ansible.builtin.copy:
+        content: |
+          subjectAltName=IP:127.0.0.1,DNS:localhost
+          extendedKeyUsage=serverAuth
+        dest: /etc/docker/tls/server.ext
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Generate the TLS fixture server key and request
+      ansible.builtin.command:
+        cmd: >-
+          openssl req -nodes -newkey rsa:2048
+          -subj /CN=molecule-docker-server
+          -keyout /etc/docker/tls/server-key.pem
+          -out /etc/docker/tls/server.csr
+      args:
+        creates: /etc/docker/tls/server.csr
+
+    - name: Sign the TLS fixture server certificate
+      ansible.builtin.command:
+        cmd: >-
+          openssl x509 -req -days 2
+          -in /etc/docker/tls/server.csr
+          -CA /etc/docker/tls/ca.pem
+          -CAkey /etc/docker/tls/ca-key.pem
+          -CAcreateserial
+          -out /etc/docker/tls/server-cert.pem
+          -extfile /etc/docker/tls/server.ext
+      args:
+        creates: /etc/docker/tls/server-cert.pem
+
+    - name: Generate the TLS fixture client key and request
+      ansible.builtin.command:
+        cmd: >-
+          openssl req -nodes -newkey rsa:2048
+          -subj /CN=molecule-docker-client
+          -keyout /etc/docker/tls/client-key.pem
+          -out /etc/docker/tls/client.csr
+      args:
+        creates: /etc/docker/tls/client.csr
+
+    - name: Sign the TLS fixture client certificate
+      ansible.builtin.command:
+        cmd: >-
+          openssl x509 -req -days 2
+          -in /etc/docker/tls/client.csr
+          -CA /etc/docker/tls/ca.pem
+          -CAkey /etc/docker/tls/ca-key.pem
+          -CAcreateserial
+          -out /etc/docker/tls/client-cert.pem
+      args:
+        creates: /etc/docker/tls/client-cert.pem
+
+    - name: Set restrictive modes on the TLS fixture keys
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: file
+        owner: root
+        group: root
+        mode: '0600'
+      loop:
+        - /etc/docker/tls/ca-key.pem
+        - /etc/docker/tls/server-key.pem
+        - /etc/docker/tls/client-key.pem

@@ -23,5 +23,60 @@ docker_users: []
   # - jenkins
   # - tomcat
 
+# --- Daemon configuration -------------------------------------------------
+docker_config_dir: /etc/docker
+docker_daemon_config_path: "{{ docker_config_dir }}/daemon.json"
+
+# Preserve keys that this role does not manage when daemon.json already exists.
+docker_daemon_config_preserve_unmanaged: true
+
+# Extra daemon.json keys (advanced escape hatch). They take precedence over the
+# managed keys above.
+docker_daemon_options: {}
+
+# Log rotation. Unbounded container logs are the most common way a host fills up.
+docker_log_driver: json-file
+docker_log_max_size: "100m"
+docker_log_max_file: "5"
+
+# Keep containers running across a daemon restart.
+docker_live_restore: true
+
+# Disable the userland proxy; kernel NAT is used instead.
+docker_userland_proxy: false
+
+# Optional list of DNS servers for containers (empty keeps Docker's default).
+docker_dns: []
+
+# Registry mirrors (empty list keeps Docker's default).
+docker_registry_mirrors: []
+
+# --- systemd drop-in ------------------------------------------------------
+# The packaged unit is never modified; customisation is a drop-in.
+docker_systemd_dropin_dir: /etc/systemd/system/docker.service.d
+docker_systemd_dropin_path: "{{ docker_systemd_dropin_dir }}/10-role-docker.conf"
+docker_containerd_socket: /run/containerd/containerd.sock
+
+# --- TCP / TLS ------------------------------------------------------------
+# TCP is disabled by default. Enabling it requires TLS material: a plain TCP
+# control socket is root-equivalent access.
 docker_enable_tcp: false
 docker_tcp_port: 2375
+docker_tls_port: 2376
+docker_tls_cert_path: ""
+docker_tls_key_path: ""
+docker_tls_ca_path: ""
+docker_tls_verify: true
+
+# Optional group readable key mode is accepted; world readable is rejected.
+docker_tls_key_allowed_modes:
+  - "0400"
+  - "0440"
+  - "0600"
+  - "0640"
+
+# --- Runtime verification -------------------------------------------------
+# Skip runtime checks on hosts where the daemon cannot be reached (for example
+# a docker-in-docker test container without a usable engine). Configuration
+# assertions still run.
+docker_verify_runtime: true

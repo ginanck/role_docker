@@ -1,8 +1,253 @@
 ---
 - name: Verify
   hosts: all
-  gather_facts: false
+  become: true
+  gather_facts: true
   tasks:
-    - name: Example assertion
+    - name: test_ac1_read_the_managed_configuration
+      ansible.builtin.slurp:
+        src: /etc/docker/daemon.json
+      register: ac1_daemon_config_raw
+
+    - name: test_ac1_parse_the_managed_configuration
+      ansible.builtin.set_fact:
+        ac1_daemon_config: "{{ ac1_daemon_config_raw.content | b64decode | from_json }}"
+
+    - name: test_ac1_assert_rotation_and_daemon_settings
       ansible.builtin.assert:
-        that: true
+        that:
+          - ac1_daemon_config['log-driver'] == 'json-file'
+          - ac1_daemon_config['log-opts']['max-size'] == '10m'
+          - ac1_daemon_config['log-opts']['max-file'] == '3'
+          - ac1_daemon_config['live-restore'] | bool
+          - not (ac1_daemon_config['userland-proxy'] | bool)
+          - ac1_daemon_config['registry-mirrors'] == ['https://mirror.molecule.local']
+          - ac1_daemon_config['dns'] == ['1.1.1.1']
+        fail_msg: "the managed daemon configuration is missing rotation, live-restore or mirror settings"
+
+    - name: test_ac1_assert_unmanaged_keys_are_preserved
+      ansible.builtin.assert:
+        that:
+          - ac1_daemon_config['debug'] | bool
+        fail_msg: "an existing unmanaged key (debug) must survive the merge"
+
+    - name: test_ac3_stat_the_drop_in
+      ansible.builtin.stat:
+        path: /etc/systemd/system/docker.service.d/10-role-docker.conf
+      register: ac3_dropin
+
+    - name: test_ac3_read_the_packaged_unit
+      ansible.builtin.slurp:
+        src: /usr/lib/systemd/system/docker.service
+      register: ac3_packaged_unit
+
+    - name: test_ac3_read_the_drop_in
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/docker.service.d/10-role-docker.conf
+      register: ac3_dropin_content
+
+    - name: test_ac3_assert_drop_in_and_untouched_unit
+      ansible.builtin.assert:
+        that:
+          - ac3_dropin.stat.exists
+          - ac3_dropin.stat.isreg
+          - "'role_docker' not in (ac3_packaged_unit.content | b64decode)"
+          - "'tcp://' not in (ac3_packaged_unit.content | b64decode)"
+          - "'ExecStart=' in (ac3_dropin_content.content | b64decode)"
+          - "'-H fd://' in (ac3_dropin_content.content | b64decode)"
+        fail_msg: "the customisation must be a drop-in and the packaged unit must stay untouched"
+
+    - name: test_ac4_find_container_prune_in_the_role
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/../../tasks"
+        patterns: "*.yml"
+        recurse: true
+        contains: "container prune"
+      register: ac4_prune_tasks
+      delegate_to: localhost
+      become: false
+
+    - name: test_ac4_assert_no_container_prune
+      ansible.builtin.assert:
+        that:
+          - ac4_prune_tasks.matched == 0
+        fail_msg: "the role must never prune containers"
+
+    - name: test_ac5_read_the_configuration_checksum_before_the_probe
+      ansible.builtin.stat:
+        path: /etc/docker/daemon.json
+      register: ac5_config_before
+
+    - name: test_ac5_tcp_without_tls_is_refused
+      block:
+        - name: test_ac5_apply_tcp_without_tls
+          ansible.builtin.include_role:
+            name: role_docker
+            tasks_from: preflight
+          vars:
+            docker_enable_tcp: true
+            docker_tls_cert_path: ""
+            docker_tls_key_path: ""
+            docker_tls_ca_path: ""
+      rescue:
+        - name: test_ac5_assert_the_tls_requirement_message
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_result is defined
+              - ansible_failed_result.msg is defined
+              - "'TLS' in ansible_failed_result.msg"
+            fail_msg: "the preflight must refuse TCP without TLS and state the requirement"
+
+    - name: test_ac5_read_the_configuration_checksum_after_the_probe
+      ansible.builtin.stat:
+        path: /etc/docker/daemon.json
+      register: ac5_config_after
+
+    - name: test_ac5_assert_the_daemon_was_not_changed
+      ansible.builtin.assert:
+        that:
+          - ac5_config_before.stat.checksum == ac5_config_after.stat.checksum
+        fail_msg: "the preflight must fail before the daemon configuration is changed"
+
+    - name: test_ac2_check_the_daemon_runtime
+      ansible.builtin.command:
+        cmd: docker info
+      register: ac2_docker_info
+      changed_when: false
+      failed_when: false
+
+    - name: test_ac2_read_the_daemon_pid_before_a_change
+      ansible.builtin.command:
+        cmd: systemctl show -p MainPID --value docker
+      register: ac2_pid_before
+      changed_when: false
+      failed_when: false
+      when: ac2_docker_info.rc == 0
+
+    - name: test_ac2_mark_the_change_time
+      ansible.builtin.command:
+        cmd: date +%s
+      register: ac2_change_marker
+      changed_when: false
+      when: ac2_docker_info.rc == 0
+
+    - name: test_ac2_apply_one_configuration_change
+      ansible.builtin.include_role:
+        name: role_docker
+        tasks_from: configure
+      vars:
+        docker_log_max_file: "4"
+      when: ac2_docker_info.rc == 0
+
+    - name: test_ac2_flush_the_restart_handler
+      ansible.builtin.meta: flush_handlers
+      when: ac2_docker_info.rc == 0
+
+    - name: test_ac2_read_the_daemon_pid_after_a_change
+      ansible.builtin.command:
+        cmd: systemctl show -p MainPID --value docker
+      register: ac2_pid_after
+      changed_when: false
+      failed_when: false
+      when: ac2_docker_info.rc == 0
+
+    - name: test_ac2_read_the_start_events_since_the_change
+      ansible.builtin.command:
+        cmd: >-
+          journalctl -u docker --since @{{ ac2_change_marker.stdout | trim }}
+          --no-pager -o cat
+      register: ac2_journal
+      changed_when: false
+      failed_when: false
+      when: ac2_docker_info.rc == 0
+
+    - name: test_ac2_assert_one_restart_per_change
+      ansible.builtin.assert:
+        that:
+          - ac2_pid_before.stdout | trim != ac2_pid_after.stdout | trim
+          - ac2_journal.stdout_lines | select('equalto', 'Started Docker Application Container Engine') | list | length == 1
+        fail_msg: "a configuration change must restart the daemon exactly once"
+      when: ac2_docker_info.rc == 0
+
+    - name: test_ac6_check_the_daemon_runtime
+      ansible.builtin.command:
+        cmd: docker info
+      register: ac6_docker_info
+      changed_when: false
+      failed_when: false
+
+    - name: test_ac6_enable_the_tls_listener
+      ansible.builtin.include_role:
+        name: role_docker
+        tasks_from: configure
+      vars:
+        docker_enable_tcp: true
+        docker_tls_cert_path: /etc/docker/tls/server-cert.pem
+        docker_tls_key_path: /etc/docker/tls/server-key.pem
+        docker_tls_ca_path: /etc/docker/tls/ca.pem
+      when: ac6_docker_info.rc == 0
+
+    - name: test_ac6_flush_the_restart_handler
+      ansible.builtin.meta: flush_handlers
+      when: ac6_docker_info.rc == 0
+
+    - name: test_ac6_wait_for_the_tls_port
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 2376
+        timeout: 30
+      when: ac6_docker_info.rc == 0
+
+    - name: test_ac6_call_the_daemon_over_tls
+      ansible.builtin.command:
+        cmd: >-
+          docker --tlsverify
+          --tlscacert=/etc/docker/tls/ca.pem
+          --tlscert=/etc/docker/tls/client-cert.pem
+          --tlskey=/etc/docker/tls/client-key.pem
+          -H tcp://127.0.0.1:2376 version
+      register: ac6_tls_version
+      changed_when: false
+      failed_when: false
+      when: ac6_docker_info.rc == 0
+
+    - name: test_ac6_assert_the_tls_listener_answers
+      ansible.builtin.assert:
+        that:
+          - ac6_tls_version.rc == 0
+        fail_msg: "the docker daemon must answer on the TLS port: {{ ac6_tls_version.stderr | default('') }}"
+      when: ac6_docker_info.rc == 0
+
+    - name: test_ac6_assert_plain_tcp_is_not_listening
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 2375
+        state: stopped
+        timeout: 10
+      when: ac6_docker_info.rc == 0
+
+    - name: test_ac6_restore_the_default_exposure
+      ansible.builtin.include_role:
+        name: role_docker
+        tasks_from: configure
+      vars:
+        docker_enable_tcp: false
+      when: ac6_docker_info.rc == 0
+
+    - name: test_ac6_flush_the_restore_handler
+      ansible.builtin.meta: flush_handlers
+      when: ac6_docker_info.rc == 0
+
+    - name: test_ac6_read_the_restored_configuration
+      ansible.builtin.slurp:
+        src: /etc/docker/daemon.json
+      register: ac6_restored_config_raw
+      when: ac6_docker_info.rc == 0
+
+    - name: test_ac6_assert_tls_settings_are_removed
+      ansible.builtin.assert:
+        that:
+          - "'tls' not in (ac6_restored_config_raw.content | b64decode | from_json)"
+          - "'tlsverify' not in (ac6_restored_config_raw.content | b64decode | from_json)"
+        fail_msg: "disabling TCP must remove the TLS listener settings"
+      when: ac6_docker_info.rc == 0

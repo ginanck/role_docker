@@ -1,34 +1,53 @@
 ---
+# Read-only verification. It never restarts the daemon and never prunes
+# containers: a second role run must report zero changed tasks.
 
-- name: Enable and start Docker service
-  ansible.builtin.systemd:
-    name: docker
-    enabled: yes
-    state: restarted
-  tags:
-    - molecule-notest
+- name: Read the managed daemon configuration
+  ansible.builtin.slurp:
+    src: "{{ docker_daemon_config_path }}"
+  register: docker_managed_daemon_config
 
-- name: Verify Docker installation with hello-world
-  ansible.builtin.command: docker run hello-world
-  register: docker_test
-  changed_when: false
-  failed_when: false
+- name: Assert the managed daemon configuration is valid JSON
+  ansible.builtin.assert:
+    that:
+      - docker_managed_daemon_config.content | b64decode | from_json is mapping
+    fail_msg: "{{ docker_daemon_config_path }} is not a JSON object"
+    quiet: true
 
-- name: Remove hello-world container after verification
-  ansible.builtin.command: docker container prune -f
-  when: docker_test.rc == 0
-  changed_when: false
-  failed_when: false
+- name: Assert the systemd drop-in is present
+  ansible.builtin.stat:
+    path: "{{ docker_systemd_dropin_path }}"
+  register: docker_dropin_stat
 
-- name: Display Docker verification result
-  ansible.builtin.debug:
-    msg: "Docker installation {{ 'successful' if docker_test.rc == 0 else 'failed' }}"
+- name: Assert the systemd drop-in exists
+  ansible.builtin.assert:
+    that:
+      - docker_dropin_stat.stat.exists | bool
+      - docker_dropin_stat.stat.isreg | bool
+    fail_msg: "the systemd drop-in {{ docker_systemd_dropin_path }} is missing"
+    quiet: true
 
-- name: Show Docker version
-  ansible.builtin.command: docker --version
+- name: Show the Docker client version
+  ansible.builtin.command:
+    cmd: docker --version
   register: docker_version
   changed_when: false
 
-- name: Display Docker version
+- name: Display the Docker version
   ansible.builtin.debug:
     var: docker_version.stdout
+
+- name: Check the Docker daemon is reachable
+  ansible.builtin.command:
+    cmd: docker info
+  register: docker_info
+  changed_when: false
+  failed_when: false
+  when: docker_verify_runtime | bool
+
+- name: Display the Docker daemon status
+  ansible.builtin.debug:
+    msg: >-
+      Docker installation
+      {{ 'successful' if (docker_info.rc | default(1)) == 0 else 'installed, daemon not reachable' }}
+  when: docker_verify_runtime | bool

@@ -1,0 +1,68 @@
+---
+# Preflight runs before any daemon configuration is written. A TCP control
+# socket without client authentication is root-equivalent access.
+
+- name: Assert TLS material is supplied when TCP is enabled
+  ansible.builtin.assert:
+    that:
+      - docker_tls_cert_path | default('', true) | length > 0
+      - docker_tls_key_path | default('', true) | length > 0
+      - docker_tls_ca_path | default('', true) | length > 0
+    fail_msg: >-
+      docker_enable_tcp requires TLS material. Set docker_tls_cert_path,
+      docker_tls_key_path and docker_tls_ca_path (with docker_tls_verify: true).
+      Refusing to expose an unauthenticated TCP control socket.
+    quiet: true
+  when: docker_enable_tcp | bool
+
+- name: Stat the TLS material
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ docker_tls_cert_path }}"
+    - "{{ docker_tls_key_path }}"
+    - "{{ docker_tls_ca_path }}"
+  register: docker_tls_material
+  when: docker_enable_tcp | bool
+
+- name: Assert the TLS material exists
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | bool
+      - item.stat.isreg | bool
+    fail_msg: >-
+      TLS material is missing: {{ item.item }}. Refusing to enable the TCP
+      socket without it.
+    quiet: true
+  loop: "{{ docker_tls_material.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item | default('unset') }}"
+  when:
+    - docker_enable_tcp | bool
+    - not item.skipped | default(false)
+
+- name: Assert the TLS key permissions are not world readable
+  ansible.builtin.assert:
+    that:
+      - item.stat.mode in docker_tls_key_allowed_modes
+    fail_msg: >-
+      The TLS key {{ item.item }} has mode {{ item.stat.mode }}; it must be one
+      of {{ docker_tls_key_allowed_modes | join(', ') }}.
+    quiet: true
+  loop: "{{ docker_tls_material.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item | default('unset') }}"
+  when:
+    - docker_enable_tcp | bool
+    - not item.skipped | default(false)
+    - item.item | default('') == docker_tls_key_path
+
+- name: Assert plain TCP is not requested alongside TLS
+  ansible.builtin.assert:
+    that:
+      - docker_tcp_port | int != docker_tls_port | int
+    fail_msg: >-
+      docker_tcp_port and docker_tls_port must differ. The plain TCP port is
+      never opened when TLS is enabled.
+    quiet: true
+  when: docker_enable_tcp | bool

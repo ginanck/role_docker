@@ -1,0 +1,124 @@
+---
+# Write the managed daemon configuration and a systemd drop-in. The packaged
+# unit is never edited: the drop-in overrides ExecStart only.
+
+- name: Ensure the Docker configuration directory exists
+  ansible.builtin.file:
+    path: "{{ docker_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Stat an existing daemon configuration
+  ansible.builtin.stat:
+    path: "{{ docker_daemon_config_path }}"
+  register: docker_daemon_config_stat
+  when: docker_daemon_config_preserve_unmanaged | bool
+
+- name: Read an existing daemon configuration
+  ansible.builtin.slurp:
+    src: "{{ docker_daemon_config_path }}"
+  register: docker_daemon_config_raw
+  when:
+    - docker_daemon_config_preserve_unmanaged | bool
+    - docker_daemon_config_stat.stat.exists | default(false) | bool
+
+- name: Start from an empty existing configuration
+  ansible.builtin.set_fact:
+    docker_daemon_config_existing: {}
+
+- name: Parse the existing daemon configuration
+  ansible.builtin.set_fact:
+    docker_daemon_config_existing: >-
+      {{ docker_daemon_config_raw.content | b64decode | from_json }}
+  when:
+    - docker_daemon_config_preserve_unmanaged | bool
+    - docker_daemon_config_raw.content is defined
+    - docker_daemon_config_raw.content | b64decode | trim | length > 0
+
+- name: Drop stale TLS settings when TCP is disabled
+  ansible.builtin.set_fact:
+    docker_daemon_config_existing: >-
+      {{ docker_daemon_config_existing | dict2items
+         | rejectattr('key', 'in', docker_daemon_tls_keys)
+         | items2dict }}
+  vars:
+    docker_daemon_tls_keys:
+      - tls
+      - tlscacert
+      - tlscert
+      - tlskey
+      - tlsverify
+  when: not (docker_enable_tcp | bool)
+
+- name: Build the managed daemon configuration
+  ansible.builtin.set_fact:
+    docker_daemon_config_managed:
+      log-driver: "{{ docker_log_driver }}"
+      log-opts:
+        max-size: "{{ docker_log_max_size }}"
+        max-file: "{{ docker_log_max_file }}"
+      live-restore: "{{ docker_live_restore | bool }}"
+      userland-proxy: "{{ docker_userland_proxy | bool }}"
+      registry-mirrors: "{{ docker_registry_mirrors }}"
+      dns: "{{ docker_dns }}"
+
+- name: Add the TLS listener settings
+  ansible.builtin.set_fact:
+    docker_daemon_config_managed: >-
+      {{ docker_daemon_config_managed | combine({
+        'tls': true,
+        'tlscacert': docker_tls_ca_path,
+        'tlscert': docker_tls_cert_path,
+        'tlskey': docker_tls_key_path,
+        'tlsverify': docker_tls_verify | bool,
+      }) }}
+  when: docker_enable_tcp | bool
+
+- name: Apply extra daemon options
+  ansible.builtin.set_fact:
+    docker_daemon_config_managed: >-
+      {{ docker_daemon_config_managed | combine(docker_daemon_options, recursive=True) }}
+  when: docker_daemon_options | length > 0
+
+- name: Merge the existing and managed configurations
+  ansible.builtin.set_fact:
+    docker_daemon_config_effective: >-
+      {{ (docker_daemon_config_existing | combine(docker_daemon_config_managed, recursive=True))
+         if (docker_daemon_config_preserve_unmanaged | bool)
+         else docker_daemon_config_managed }}
+
+- name: Write the managed daemon configuration
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: "{{ docker_daemon_config_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+  notify: reload and restart docker
+
+- name: Ensure the systemd drop-in directory exists
+  ansible.builtin.file:
+    path: "{{ docker_systemd_dropin_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Write the systemd drop-in
+  ansible.builtin.template:
+    src: docker-dropin.conf.j2
+    dest: "{{ docker_systemd_dropin_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload and restart docker
+
+- name: Ensure the Docker service is enabled and started
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+    daemon_reload: true

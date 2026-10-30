@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# Drop-in for docker.service. The packaged unit is left untouched.
+[Service]
+# Reset the packaged ExecStart and re-add the same control socket, plus the
+# TLS-only TCP listener when it is requested.
+ExecStart=
+ExecStart=/usr/bin/dockerd -H fd://{% if docker_enable_tcp | bool %} -H tcp://0.0.0.0:{{ docker_tls_port }}{% endif %} --containerd={{ docker_containerd_socket }}

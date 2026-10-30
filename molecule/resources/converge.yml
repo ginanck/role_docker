@@ -2,5 +2,15 @@
 - name: Converge
   hosts: all
   become: true
+  vars:
+    # Exercise the non-default rotation, mirror and DNS settings.
+    docker_log_max_size: "10m"
+    docker_log_max_file: "3"
+    docker_live_restore: true
+    docker_userland_proxy: false
+    docker_registry_mirrors:
+      - https://mirror.molecule.local
+    docker_dns:
+      - 1.1.1.1
   roles:
     - role_docker

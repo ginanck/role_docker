@@ -9,8 +9,8 @@ dependency:
 driver:
   name: docker
 platforms:
-  - name: default
-    image: ghcr.io/ginanck/molecule-rockylinux:8-latest
+  - name: role-docker-default
+    image: ghcr.io/ginanck/molecule-rockylinux:9-latest
     pre_build_image: true
     privileged: true
     volumes:
@@ -28,9 +28,9 @@ provisioner:
     ANSIBLE_COLLECTIONS_PATH: ${MOLECULE_PROJECT_DIRECTORY}/dependency/collections
   inventory:
     host_vars:
-      default:
+      role-docker-default:
         ansible_user: root
-        base_hostname: "default"
+        base_hostname: "role-docker-default"
   playbooks:
     converge: ../resources/converge.yml
     prepare: ../resources/prepare.yml
